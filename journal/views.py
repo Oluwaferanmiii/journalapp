@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import JournalEntry
@@ -13,6 +13,8 @@ def register_user(request):
         form = UserCreationForm(request.POST)
         if form.is_valid():
             form.save()
+            messages.success(
+                request, "Registration successful! Please log in.")
             return redirect('login')
     else:
         form = UserCreationForm()
@@ -20,15 +22,22 @@ def register_user(request):
 
 
 def login_user(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-        else:
-            messages.error(request, "Invalid username or password")
-        return render(request, 'journal/login.html')
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                login(request, user)
+                return redirect('dashboard')
+        messages.error(request, "Invalid username or password")
+    else:
+        form = AuthenticationForm()
+    return render(request, 'journal/login.html', {'form': form})
 
 
 def logout_user(request):
@@ -38,14 +47,15 @@ def logout_user(request):
 
 @login_required
 def dashboard_view(request):
-    if request.method == "POST":
-        entries = JournalEntry.objects.filter(
-            user=request.user).order_by('-created_at')
-        return render(request, 'journal/dashboard.html', {'entries': entries})
+    entries = JournalEntry.objects.filter(
+        user=request.user).order_by('-created_at')
+    return render(request, 'journal/dashboard.html', {'entries': entries})
 
 
 @login_required
 def create_entry_view(request):
+    entries = JournalEntry.objects.filter(
+        user=request.user).order_by('-created_at')
     if request.method == "POST":
         form = JournalEntryForm(request.POST)
         if form.is_valid():
@@ -55,36 +65,40 @@ def create_entry_view(request):
             return redirect('dashboard')
     else:
         form = JournalEntryForm()
-    return render(request, 'journal/new_entry.html', {'form': form})
+    return render(request, 'journal/dashboard.html', {'form': form, 'entries': entries})
 
 
 @login_required
 def edit_entry_view(request, entry_id):
     entry = get_object_or_404(JournalEntry, id=entry_id, user=request.user)
+    entries = JournalEntry.objects.filter(
+        user=request.user).order_by('-created_at')
     if request.method == "POST":
         form = JournalEntryForm(request.POST, instance=entry)
         if form.is_valid():
             form.save()
-            return redirect('entry_detail', entry_id=entry.id)
+            return redirect('dashboard')
     else:
         form = JournalEntryForm(instance=entry)
-    return render(request, 'journal/edit_entry.html', {'form': form, 'entry': entry})
+    return render(request, 'journal/dashboard.html', {'form': form, 'entry': entry, 'entries': entries})
 
 
 @login_required
 def delete_entry_view(request, entry_id):
     entry = get_object_or_404(JournalEntry, id=entry_id, user=request.user)
+    entries = JournalEntry.objects.filter(
+        user=request.user).order_by('-created_at')
     if request.method == "POST":
         entry.delete()
         return redirect('dashboard')
-    return render(request, 'journal/delete_entry.html', {'entry': entry})
+    return render(request, 'journal/dashboard.html', {'entry': entry, 'entries': entries})
 
 
 @login_required
 def search_entries_view(request):
     query = request.GET.get('q', '')
     entries = JournalEntry.objects.filter(Q(title__icontains=query) | Q(
-        content__icontain=query), user=request.user).order_by('-created_at')
+        content__icontains=query), user=request.user).order_by('-created_at')
     return render(request, 'journal/dashboard.html', {'entries': entries, 'query': query})
 
 
