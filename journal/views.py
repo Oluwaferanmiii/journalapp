@@ -6,6 +6,8 @@ from django.contrib import messages
 from .models import JournalEntry
 from .forms import JournalEntryForm
 from django.db.models import Q
+from datetime import datetime
+import re
 
 
 def register_user(request):
@@ -49,7 +51,29 @@ def logout_user(request):
 def dashboard_view(request):
     entries = JournalEntry.objects.filter(
         user=request.user).order_by('-created_at')
-    return render(request, 'journal/dashboard.html', {'entries': entries})
+
+    # Calculate statistics
+    current_year = datetime.now().year  # 2025
+    entries_this_year = entries.filter(created_at__year=current_year).count()
+
+    # Words Written: Count total words in title + content
+    total_words = 0
+    for entry in entries:
+        title_words = len(re.findall(r'\w+', entry.title)
+                          ) if entry.title else 0
+        content_words = len(re.findall(r'\w+', entry.content)
+                            ) if entry.content else 0
+        total_words += title_words + content_words
+
+    # Days Journaled: Count unique days with entries
+    unique_days = len(set(entry.created_at.date() for entry in entries))
+
+    return render(request, 'journal/dashboard.html', {
+        'entries': entries,
+        'entries_this_year': entries_this_year,
+        'total_words': total_words,
+        'days_journaled': unique_days,
+    })
 
 
 @login_required
@@ -106,13 +130,28 @@ def delete_entry_view(request, entry_id):
 @login_required
 def search_entries_view(request):
     query = request.GET.get('q', '')
-    entries = JournalEntry.objects.filter(Q(title__icontains=query) | Q(
-        content__icontains=query), user=request.user).order_by('-created_at')
-    return render(request, 'journal/dashboard.html', {'entries': entries, 'query': query})
+    entries = JournalEntry.objects.filter(
+        Q(title__icontains=query) | Q(content__icontains=query),
+        user=request.user
+    ).order_by('-created_at')
+    return render(request, 'journal/dashboard.html', {
+        'entries': entries,
+        'query': query,
+        'search_active': True,  # Add flag to indicate search page
+        'entries_this_year': entries.filter(created_at__year=datetime.now().year).count(),
+        'total_words': sum(len(re.findall(r'\w+', entry.title)) + len(re.findall(r'\w+', entry.content or '')) for entry in entries),
+        'days_journaled': len(set(entry.created_at.date() for entry in entries)),
+    })
 
 
 @login_required
 def filter_by_mood_view(request, mood):
     entries = JournalEntry.objects.filter(
         user=request.user, mood=mood).order_by('-created_at')
-    return render(request, 'journal/dashboard.html', {'entries': entries, 'mood_filter': mood})
+    return render(request, 'journal/dashboard.html', {
+        'entries': entries,
+        'mood_filter': mood,
+        'entries_this_year': entries.filter(created_at__year=datetime.now().year).count(),
+        'total_words': sum(len(re.findall(r'\w+', entry.title)) + len(re.findall(r'\w+', entry.content or '')) for entry in entries),
+        'days_journaled': len(set(entry.created_at.date() for entry in entries)),
+    })
