@@ -53,45 +53,54 @@ def dashboard_view(request):
 
 
 @login_required
-def create_entry_view(request):
-    entries = JournalEntry.objects.filter(
-        user=request.user).order_by('-created_at')
+def entry_view(request, entry_id=None):
+    if entry_id:
+        entry = get_object_or_404(JournalEntry, id=entry_id, user=request.user)
+        initial_content = f"{entry.title}\n{entry.content or ''}"
+        initial_mood = entry.mood
+    else:
+        entry = None
+        initial_content = ""
+        initial_mood = "Neutral"
+
     if request.method == "POST":
-        form = JournalEntryForm(request.POST)
-        if form.is_valid():
-            entry = form.save(commit=False)
-            entry.user = request.user
+        content = request.POST.get('content', '')
+        lines = content.split('\n', 1)
+        title = lines[0].strip() if lines else "Untitled entry"
+        content_body = lines[1].strip() if len(lines) > 1 else ""
+        mood = request.POST.get('mood', 'neutral')
+
+        if entry:  # Editing an existing entry
+            entry.title = title
+            entry.content = content_body
+            entry.mood = mood
             entry.save()
-            return redirect('dashboard')
-    else:
-        form = JournalEntryForm()
-    return render(request, 'journal/dashboard.html', {'form': form, 'entries': entries})
+            messages.success(request, "Entry saved successfully!")
+        else:  # Creating a new entry
+            entry = JournalEntry.objects.create(
+                user=request.user,
+                title=title,
+                content=content_body,
+                mood=mood
+            )
+            messages.success(request, "Entry created successfully!")
+        return redirect('dashboard')
 
-
-@login_required
-def edit_entry_view(request, entry_id):
-    entry = get_object_or_404(JournalEntry, id=entry_id, user=request.user)
-    entries = JournalEntry.objects.filter(
-        user=request.user).order_by('-created_at')
-    if request.method == "POST":
-        form = JournalEntryForm(request.POST, instance=entry)
-        if form.is_valid():
-            form.save()
-            return redirect('dashboard')
-    else:
-        form = JournalEntryForm(instance=entry)
-    return render(request, 'journal/dashboard.html', {'form': form, 'entry': entry, 'entries': entries})
+    return render(request, 'journal/entry.html', {
+        'entry': entry,
+        'initial_content': initial_content,
+        'initial_mood': initial_mood,
+    })
 
 
 @login_required
 def delete_entry_view(request, entry_id):
     entry = get_object_or_404(JournalEntry, id=entry_id, user=request.user)
-    entries = JournalEntry.objects.filter(
-        user=request.user).order_by('-created_at')
     if request.method == "POST":
         entry.delete()
+        messages.success(request, "Entry deleted successfully!")
         return redirect('dashboard')
-    return render(request, 'journal/dashboard.html', {'entry': entry, 'entries': entries})
+    return redirect('dashboard')
 
 
 @login_required
