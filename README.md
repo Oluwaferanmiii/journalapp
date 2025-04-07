@@ -150,3 +150,17 @@ journal-app/
 ---
 
 ## Screenshots
+### Register 
+![Register Page](<images/Register Screen.png>)
+
+### Login 
+![Login Page](<images/Login Screen.png>)
+
+### Dashboard 
+![Dashboard](images/Dashboard.png)
+
+### New Entry
+![New Entry](<images/new entry.png>)
+
+### Search
+![Search](<images/Search screen.png>)
