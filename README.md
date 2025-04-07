@@ -164,3 +164,21 @@ journal-app/
 
 ### Search
 ![Search](<images/Search screen.png>)
+
+---
+
+## Contributing
+Contributions are welcome! To contribute:
+
+1. Fork the repository.
+2. Create a new branch (git checkout -b feature/your-feature).
+3. Make your changes and commit them (git commit -m "Add your feature").
+4. Push to your branch (git push origin feature/your-feature).
+5. Open a pull request.
+
+Please ensure your code follows the project’s style guidelines and includes appropriate tests.
+
+---
+
+## License
+This project is licensed under the MIT [License](LICENSE). See the file for details.
